@@ -24,52 +24,65 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField]
     private Transform myBody = null;
 
-    private Vector3 myLastDir = Vector3.zero;
-
     [SerializeField]
     private float myJumpForce = 5;
 
-    private void FixedUpdate()
+    [SerializeField]
+    private Transform target = null;
+
+    [SerializeField]
+    private float myRotationSpeed = 1.0f;
+
+    private Vector3 myNewPos = Vector3.zero;
+
+    private void Update()
     {
         float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
+        float y = Input.GetAxis("Vertical");
 
         Vector3 camForward = myCamera.forward;
         camForward.y = 0;
-        camForward *= z;
 
         Vector3 camRight = myCamera.right;
         camRight.y = 0;
-        camRight *= x;
 
-        Vector3 dir = camForward + camRight;
+        target.position = myBody.position + camForward * y + camRight * x;
 
-        if (x != 0 || z != 0)
+        // Determine which direction to rotate towards
+        Vector3 targetDirection = target.position - myBody.position;
+
+        // The step size is equal to speed times frame time.
+        float singleStep = myRotationSpeed * Time.deltaTime;
+
+        // Rotate the forward vector towards the target direction by one step
+        Vector3 newDirection = Vector3.RotateTowards(myBody.forward, targetDirection, singleStep, 0.0f);
+
+        // Calculate a rotation a step closer to the target and applies rotation to this object
+        myBody.rotation = Quaternion.LookRotation(newDirection);
+
+        Debug.DrawLine(myBody.position, target.position, Color.red);
+
+        if (x != 0 || y != 0)
         {
             mySpeed += myAcceleration * Time.deltaTime;
             if (mySpeed > mySpeedMax)
                 mySpeed = mySpeedMax;
 
-            myLastDir = dir;
         }
-        else if(mySpeed > 0)
+        else if (mySpeed > 0)
         {
             mySpeed -= myDecceleration * Time.deltaTime;
             if (mySpeed < 0)
                 mySpeed = 0;
-            dir = myLastDir;
         }
 
         Vector3 velocity = Vector3.zero;
-        Vector3 damp = Vector3.SmoothDamp(myRigidBody.position, myRigidBody.position + dir.normalized * Time.fixedDeltaTime * mySpeed, ref velocity, myDamp);
+        //myNewPos = Vector3.SmoothDamp(myRigidBody.position, myRigidBody.position + myBody.forward * Time.deltaTime * mySpeed, ref velocity, myDamp);
+        myNewPos = myRigidBody.position + myBody.forward * Time.deltaTime * mySpeed;
+    }
 
-        myRigidBody.MovePosition(damp);
-
-        myBody.LookAt(myRigidBody.position + dir.normalized);
-
-        if(Input.GetKeyDown(KeyCode.Space))
-        {
-            myRigidBody.velocity += Vector3.up * myJumpForce;
-        }
+    private void FixedUpdate()
+    {
+        myRigidBody.MovePosition(myNewPos);
     }
 }
